@@ -1,0 +1,53 @@
+{
+  // Debugging Pico 2 W (RP2350) with a SWD probe via OpenOCD + Cortex-Debug.
+  // Build outputs expected from sysbuild:
+  // - App:    pi-ota/build/pi-ota/zephyr/zephyr.elf
+  // - MCUboot pi-ota/build/mcuboot/zephyr/zephyr.elf
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Pico 2 W (MCUboot + App) - Launch (OpenOCD)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "servertype": "external",
+      "gdbPath": "arm-none-eabi-gdb",
+      "gdbTarget": "localhost:3333",
+      "rtos": "Zephyr",
+
+      "executable": "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf",
+      "symbolFiles": ["${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf"],
+
+      "configFiles": ["interface/cmsis-dap.cfg", "target/rp2350.cfg"],
+      "openOCDLaunchCommands": ["transport select swd", "adapter speed 5000"],
+
+      "preLaunchCommands": ["monitor reset halt"],
+      "postLaunchCommands": [
+        "monitor program ${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf verify",
+        "monitor program ${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf verify",
+        "monitor reset halt"
+      ],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "raw"
+    },
+    {
+      "name": "Pico 2 W (MCUboot + App) - Attach (OpenOCD)",
+      "type": "cortex-debug",
+      "request": "attach",
+      "cwd": "${workspaceFolder}",
+      "servertype": "external",
+      "gdbPath": "arm-none-eabi-gdb",
+      "gdbTarget": "localhost:3333",
+      "rtos": "Zephyr",
+
+      "executable": "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf",
+      "symbolFiles": ["${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf"],
+
+      "configFiles": ["interface/cmsis-dap.cfg", "target/rp2350.cfg"],
+      "openOCDLaunchCommands": ["transport select swd", "adapter speed 5000"],
+
+      "preAttachCommands": ["monitor reset halt"],
+      "showDevDebugOutput": "raw"
+    }
+  ]
+}

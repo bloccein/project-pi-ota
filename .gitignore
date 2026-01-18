@@ -54,7 +54,7 @@ doc/doc.warnings
 .*project
 .settings
 .envrc
-.vscode
+.vscode/*
 hide-defaults-note
 venv
 .venv
@@ -123,3 +123,5 @@ ZephyrModuleFile.txt
 
 # Node dependecies
 node_modules
+
+!.vscode/launch.json

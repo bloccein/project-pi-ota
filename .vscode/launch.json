@@ -16,15 +16,18 @@
       "rtos": "Zephyr",
 
       "executable": "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf",
-      "symbolFiles": ["${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf"],
+      "symbolFiles": [
+        "${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf",
+        "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf"
+      ],
 
       "configFiles": ["interface/cmsis-dap.cfg", "target/rp2350.cfg"],
       "openOCDLaunchCommands": ["transport select swd", "adapter speed 5000"],
 
       "preLaunchCommands": ["monitor reset halt"],
       "postLaunchCommands": [
-        "monitor program ${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf verify",
-        "monitor program ${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf verify",
+        "monitor program ${workspaceFolder}/build/mcuboot/zephyr/zephyr.hex verify",
+        "monitor program ${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.signed.hex verify",
         "monitor reset halt"
       ],
       "runToEntryPoint": "main",
@@ -41,7 +44,10 @@
       "rtos": "Zephyr",
 
       "executable": "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf",
-      "symbolFiles": ["${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf"],
+      "symbolFiles": [
+        "${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf",
+        "${workspaceFolder}/build/project-pi-ota/zephyr/zephyr.elf"
+      ],
 
       "configFiles": ["interface/cmsis-dap.cfg", "target/rp2350.cfg"],
       "openOCDLaunchCommands": ["transport select swd", "adapter speed 5000"],

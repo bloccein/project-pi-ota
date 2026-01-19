@@ -14,6 +14,18 @@ project(smp_svr)
 
 target_sources(app PRIVATE src/main.c)
 target_sources_ifdef(CONFIG_MCUMGR_TRANSPORT_BT app PRIVATE src/bluetooth.c)
+target_sources(app PRIVATE src/dfu_hooks.c)
+
+if(DEFINED WEST_TOPDIR)
+  set(mcuboot_bootutil_inc ${WEST_TOPDIR}/bootloader/mcuboot/boot/bootutil/include)
+  set(mcuboot_zephyr_inc ${WEST_TOPDIR}/bootloader/mcuboot/boot/zephyr/include)
+else()
+  get_filename_component(west_topdir_fallback "${ZEPHYR_BASE}/.." ABSOLUTE)
+  set(mcuboot_bootutil_inc ${west_topdir_fallback}/bootloader/mcuboot/boot/bootutil/include)
+  set(mcuboot_zephyr_inc ${west_topdir_fallback}/bootloader/mcuboot/boot/zephyr/include)
+endif()
+
+target_include_directories(app PRIVATE ${mcuboot_bootutil_inc} ${mcuboot_zephyr_inc})
 
 if(CONFIG_MCUMGR_TRANSPORT_UDP_DTLS)
   # Use dummy certificate files

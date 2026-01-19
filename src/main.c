@@ -8,6 +8,21 @@
 #include <zephyr/kernel.h>
 #include <zephyr/stats/stats.h>
 #include <zephyr/usb/usb_device.h>
+#include <zephyr/net/socket.h>
+
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+
+#ifdef CONFIG_SHELL
+#include <zephyr/shell/shell.h>
+#endif
+
+/* ---- Configure these ---- */
+#define SERVER_IP   "192.168.1.145"
+#define SERVER_PORT 9999
+
+#define DEVICE_ID   "node03"
 
 #ifdef CONFIG_MCUMGR_GRP_FS
 #include <zephyr/device.h>
@@ -26,6 +41,7 @@
 LOG_MODULE_REGISTER(smp_sample);
 
 #include "common.h"
+#include "dfu_hooks.h"
 
 #define STORAGE_PARTITION_LABEL	storage_partition
 #define STORAGE_PARTITION_ID	FIXED_PARTITION_ID(STORAGE_PARTITION_LABEL)
@@ -53,6 +69,92 @@ static struct fs_mount_t littlefs_mnt = {
 };
 #endif
 
+// static int send_ready_ping(const char *hash, const char *server_ip, uint16_t server_port)
+// {
+//     int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+//     if (sock < 0) {
+//         LOG_ERR("socket() failed: %d", errno);
+//         return -errno;
+//     }
+
+//     struct sockaddr_in dst = {0};
+//     dst.sin_family = AF_INET;
+//     dst.sin_port = htons(server_port);
+
+//     int rc = zsock_inet_pton(AF_INET, server_ip, &dst.sin_addr);
+//     if (rc != 1) {
+//         LOG_ERR("inet_pton() failed for %s", server_ip);
+//         zsock_close(sock);
+//         return -EINVAL;
+//     }
+
+//     /* Minimal JSON payload */
+//     char msg[192];
+//     int len = snprintk(msg, sizeof(msg),
+//                        "{\"kind\":\"ping\",\"device_id\":\"%s\",\"desired_sha256\":\"%s\",\"udp_port\":1337}",
+//                        DEVICE_ID, hash);
+
+//     if (len <= 0 || len >= sizeof(msg)) {
+//         LOG_ERR("message formatting failed");
+//         zsock_close(sock);
+//         return -EINVAL;
+//     }
+
+//     rc = zsock_sendto(sock, msg, len, 0,
+//                       (struct sockaddr *)&dst, sizeof(dst));
+//     if (rc < 0) {
+//         LOG_ERR("sendto() failed: %d", errno);
+//         zsock_close(sock);
+//         return -errno;
+//     }
+
+//     LOG_INF("Sent ready ping to %s:%d (%d bytes)", server_ip, server_port, rc);
+//     zsock_close(sock);
+//     return 0;
+// }
+
+// static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
+// {
+// 	const char *server_ip = SERVER_IP;
+// 	uint16_t server_port = SERVER_PORT;
+
+// 	const char *hash = argv[1];
+
+// 	if (argc >= 3) {
+// 		server_ip = argv[2];
+// 	}
+
+// 	if (argc >= 4) {
+// 		char *endp = NULL;
+// 		unsigned long port_ul = strtoul(argv[2], &endp, 10);
+
+// 		if ((argv[3][0] == '\0') || (endp == NULL) || (*endp != '\0') ||
+// 		    (port_ul > UINT16_MAX)) {
+// 			shell_error(shell, "Invalid port: %s", argv[3]);
+// 			return -EINVAL;
+// 		}
+
+// 		server_port = (uint16_t)port_ul;
+// 	}
+
+// 	int rc = send_ready_ping(hash, server_ip, server_port);
+// 	if (rc != 0) {
+// 		shell_error(shell, "Ready ping failed: %d", rc);
+// 		return rc;
+// 	}
+
+// 	shell_print(shell, "Ready ping with hash %s sent to %s:%u", hash, server_ip, server_port);
+// 	return 0;
+// }
+
+// SHELL_STATIC_SUBCMD_SET_CREATE(
+// 	sub_ready,
+// 	SHELL_CMD_ARG(ping, NULL, "Send ready ping: ping [ip] [port]", cmd_ready_ping, 0, 3),
+// 	SHELL_SUBCMD_SET_END
+// );
+
+// SHELL_CMD_REGISTER(ready, &sub_ready, "Readiness helpers", NULL);
+
 int main(void)
 {
 	int rc = STATS_INIT_AND_REG(smp_svr_stats, STATS_SIZE_32,
@@ -63,6 +165,7 @@ int main(void)
 	}
 
 	/* Register the built-in mcumgr command handlers. */
+	dfu_hooks_register();
 #ifdef CONFIG_MCUMGR_GRP_FS
 	rc = fs_mount(&littlefs_mnt);
 	if (rc < 0) {
@@ -91,19 +194,16 @@ int main(void)
 	/* using __TIME__ ensure that a new binary will be built on every
 	 * compile which is convenient when testing firmware upgrade.
 	 */
-	LOG_INF("build time: " __DATE__ " " __TIME__);
+	LOG_ERR("Build Time: " __DATE__ " " __TIME__);
 
 	/* The system work queue handles all incoming mcumgr requests.  Let the
 	 * main thread idle while the mcumgr server runs.
 	 */
 	// for (int i = 1; i < 30; i++) {
 	for (int i = 1; true; i++) {
-		LOG_INF("Test %d", i);
 		k_sleep(K_MSEC(1000));
 		STATS_INC(smp_svr_stats, ticks);
 	}
-
-	// *(int*)0 = 1;
 
 	return 0;
 }

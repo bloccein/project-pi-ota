@@ -159,7 +159,7 @@ void dfu_hook_image_update_completed(void)
 	}
 
 	bin2hex(sha, sizeof(sha), sha_hex, sizeof(sha_hex));
-	LOG_INF("Image upload completed (sha256=%s)", sha_hex);
+	LOG_WRN("Image upload completed (sha256=%s)", sha_hex);
 }
 
 void dfu_hook_image_confirmed(unsigned int image)

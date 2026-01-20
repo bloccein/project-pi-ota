@@ -1,14 +1,8 @@
-/*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
- * Copyright (c) 2020 Prevas A/S
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
+#include <zephyr/app_version.h>
 #include <zephyr/kernel.h>
-#include <zephyr/stats/stats.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/net/net_compat.h>
 
 #include <errno.h>
 #include <limits.h>
@@ -19,7 +13,7 @@
 #endif
 
 /* ---- Configure these ---- */
-#define SERVER_IP   "192.168.1.145"
+#define SERVER_IP   "192.168.1.117"
 #define SERVER_PORT 9999
 
 #define DEVICE_ID   "node03"
@@ -43,21 +37,6 @@ LOG_MODULE_REGISTER(smp_sample);
 #include "common.h"
 #include "dfu_hooks.h"
 
-#define STORAGE_PARTITION_LABEL	storage_partition
-#define STORAGE_PARTITION_ID	FIXED_PARTITION_ID(STORAGE_PARTITION_LABEL)
-
-/* Define an example stats group; approximates seconds since boot. */
-STATS_SECT_START(smp_svr_stats)
-STATS_SECT_ENTRY(ticks)
-STATS_SECT_END;
-
-/* Assign a name to the `ticks` stat. */
-STATS_NAME_START(smp_svr_stats)
-STATS_NAME(smp_svr_stats, ticks)
-STATS_NAME_END(smp_svr_stats);
-
-/* Define an instance of the stats group. */
-STATS_SECT_DECL(smp_svr_stats) smp_svr_stats;
 
 #ifdef CONFIG_MCUMGR_GRP_FS
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
@@ -69,49 +48,49 @@ static struct fs_mount_t littlefs_mnt = {
 };
 #endif
 
-// static int send_ready_ping(const char *hash, const char *server_ip, uint16_t server_port)
-// {
-//     int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-//     if (sock < 0) {
-//         LOG_ERR("socket() failed: %d", errno);
-//         return -errno;
-//     }
+static int send_ready_ping(const char *server_ip, uint16_t server_port)
+{
+    int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0) {
+        LOG_ERR("socket() failed: %d", errno);
+        return -errno;
+    }
 
-//     struct sockaddr_in dst = {0};
-//     dst.sin_family = AF_INET;
-//     dst.sin_port = htons(server_port);
+    struct sockaddr_in dst = {0};
+    dst.sin_family = AF_INET;
+    dst.sin_port = htons(server_port);
 
-//     int rc = zsock_inet_pton(AF_INET, server_ip, &dst.sin_addr);
-//     if (rc != 1) {
-//         LOG_ERR("inet_pton() failed for %s", server_ip);
-//         zsock_close(sock);
-//         return -EINVAL;
-//     }
+    int rc = zsock_inet_pton(AF_INET, server_ip, &dst.sin_addr);
+    if (rc != 1) {
+        LOG_ERR("inet_pton() failed for %s", server_ip);
+        zsock_close(sock);
+        return -EINVAL;
+    }
 
-//     /* Minimal JSON payload */
-//     char msg[192];
-//     int len = snprintk(msg, sizeof(msg),
-//                        "{\"kind\":\"ping\",\"device_id\":\"%s\",\"desired_sha256\":\"%s\",\"udp_port\":1337}",
-//                        DEVICE_ID, hash);
+    /* Minimal JSON payload */
+    char msg[192];
+    int len = snprintk(msg, sizeof(msg),
+                       "{\"kind\":\"ping\",\"device_id\":\"%s\",\"version\":\"%s\",\"smp_port\":1337}",
+                       DEVICE_ID, APP_VERSION_STRING);
 
-//     if (len <= 0 || len >= sizeof(msg)) {
-//         LOG_ERR("message formatting failed");
-//         zsock_close(sock);
-//         return -EINVAL;
-//     }
+    if (len <= 0 || len >= sizeof(msg)) {
+        LOG_ERR("message formatting failed");
+        zsock_close(sock);
+        return -EINVAL;
+    }
 
-//     rc = zsock_sendto(sock, msg, len, 0,
-//                       (struct sockaddr *)&dst, sizeof(dst));
-//     if (rc < 0) {
-//         LOG_ERR("sendto() failed: %d", errno);
-//         zsock_close(sock);
-//         return -errno;
-//     }
+    rc = zsock_sendto(sock, msg, len, 0,
+                      (struct sockaddr *)&dst, sizeof(dst));
+    if (rc < 0) {
+        LOG_ERR("sendto() failed: %d", errno);
+        zsock_close(sock);
+        return -errno;
+    }
 
-//     LOG_INF("Sent ready ping to %s:%d (%d bytes)", server_ip, server_port, rc);
-//     zsock_close(sock);
-//     return 0;
-// }
+    LOG_INF("Sent ready ping to %s:%d (%d bytes)", server_ip, server_port, rc);
+    zsock_close(sock);
+    return 0;
+}
 
 // static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
 // {
@@ -157,12 +136,6 @@ static struct fs_mount_t littlefs_mnt = {
 
 int main(void)
 {
-	int rc = STATS_INIT_AND_REG(smp_svr_stats, STATS_SIZE_32,
-				    "smp_svr_stats");
-
-	if (rc < 0) {
-		LOG_ERR("Error initializing stats system [%d]", rc);
-	}
 
 	/* Register the built-in mcumgr command handlers. */
 	dfu_hooks_register();
@@ -201,8 +174,8 @@ int main(void)
 	 */
 	// for (int i = 1; i < 30; i++) {
 	for (int i = 1; true; i++) {
-		k_sleep(K_MSEC(1000));
-		STATS_INC(smp_svr_stats, ticks);
+		k_sleep(K_MSEC(10000));
+		send_ready_ping(SERVER_IP, SERVER_PORT);
 	}
 
 	return 0;

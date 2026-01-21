@@ -70,7 +70,7 @@ static int get_hash(const char *ep_ip, uint16_t ep_port)
         goto fin;
     }
 
-    rc = zsock_recv(sock, good_hash, sizeof(good_hash), 0);
+    rc = zsock_recv(sock, good_hash, sizeof(good_hash), MSG_WAITALL);
     if (rc < 0)
     {
         rc = -errno;

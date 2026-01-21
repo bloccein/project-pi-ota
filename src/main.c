@@ -36,8 +36,6 @@ LOG_MODULE_REGISTER(smp_sample);
 #include "common.h"
 #include "dfu_hooks.h"
 
-uint8_t good_hash[32];
-
 static int get_hash(const char *ep_ip, uint16_t ep_port)
 {
     int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);

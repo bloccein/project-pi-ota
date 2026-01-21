@@ -13,7 +13,7 @@ LOG_MODULE_REGISTER(dfu_hooks, LOG_LEVEL_INF);
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/util.h>
 
-#include <zephyr/mgmt/mcumgr/grp/img_mgmt/img_mgmt.h>
+uint8_t good_hash[IMG_MGMT_DATA_SHA_LEN];
 
 static int find_tlv_area(const struct flash_area *fa, size_t start_off, uint16_t magic,
 			 size_t *tlvs_start, size_t *tlvs_end)

@@ -82,6 +82,9 @@ static int get_hash(const char *ep_ip, uint16_t ep_port)
     else
     {
         rc = 0;
+        char sha_hex[(IMG_MGMT_DATA_SHA_LEN * 2) + 1];
+        bin2hex(good_hash, sizeof(good_hash), sha_hex, sizeof(sha_hex));
+        LOG_WRN("got sha256=%s", sha_hex);
     }
 
 fin:

@@ -5,9 +5,6 @@
 
 void dfu_hooks_register(void);
 
-void dfu_hook_image_update_completed(void);
-void dfu_hook_image_confirmed(unsigned int image);
-
 extern uint8_t good_hash[IMG_MGMT_DATA_SHA_LEN];
 
 #endif

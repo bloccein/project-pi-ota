@@ -13,6 +13,7 @@
 /* ---- Configure these ---- */
 #define SERVER_IP "192.168.1.117"
 #define SERVER_PORT 9999
+#define ENDPOINT_PORT 6000
 
 #define DEVICE_ID "node03"
 
@@ -34,6 +35,61 @@ LOG_MODULE_REGISTER(smp_sample);
 
 #include "common.h"
 #include "dfu_hooks.h"
+
+uint8_t good_hash[32];
+
+static int get_hash(const char *ep_ip, uint16_t ep_port)
+{
+    int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0)
+    {
+        LOG_ERR("socket() failed: %d", errno);
+        return -errno;
+    }
+
+    struct sockaddr_in dst = {0};
+    dst.sin_family = AF_INET;
+    dst.sin_port = htons(ep_port);
+
+    int rc = zsock_inet_pton(AF_INET, ep_ip, &dst.sin_addr);
+    if (rc != 1)
+    {
+        LOG_ERR("inet_pton() failed for %s", ep_ip);
+        zsock_close(sock);
+        return -EINVAL;
+    }
+
+    char *msg = "get_hash";
+
+    rc = zsock_sendto(sock, msg, strlen(msg), 0,
+                      (struct sockaddr *)&dst, sizeof(dst));
+    if (rc < 0)
+    {
+        rc = -errno;
+        LOG_ERR("sendto() failed: %d", rc);
+        goto fin;
+    }
+
+    rc = zsock_recv(sock, good_hash, sizeof(good_hash), 0);
+    if (rc < 0)
+    {
+        rc = -errno;
+        LOG_ERR("Err receiving hash: %d", rc);
+    }
+    else if (rc != sizeof(good_hash))
+    {
+        LOG_ERR("Received %d/32 bytes (hash req)", rc);
+        rc = -EINVAL;
+    }
+    else
+    {
+        rc = 0;
+    }
+
+fin:
+    zsock_close(sock);
+    return rc;
+}
 
 static int send_ready_ping(const char *server_ip, uint16_t server_port)
 {
@@ -83,10 +139,12 @@ static int send_ready_ping(const char *server_ip, uint16_t server_port)
     return 0;
 }
 
-static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
+static int cmd_fwup(const struct shell *shell, size_t argc, char **argv)
 {
     const char *server_ip = SERVER_IP;
+    const char *endpoint_ip = SERVER_IP;
     uint16_t server_port = SERVER_PORT;
+    uint16_t endpoint_port = ENDPOINT_PORT;
 
     if (argc > 1)
     {
@@ -95,13 +153,17 @@ static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
 
     if (argc > 2)
     {
-        char *endp = NULL;
-        unsigned long port_ul = strtoul(argv[2], &endp, 10);
-
-        server_port = (uint16_t)port_ul;
+        endpoint_ip = argv[2];
     }
 
-    int rc = send_ready_ping(server_ip, server_port);
+    int rc = get_hash(endpoint_ip, endpoint_port);
+    if (rc != 0)
+    {
+        shell_error(shell, "Failed to get hash: %d", rc);
+        return rc;
+    }
+
+    rc = send_ready_ping(server_ip, server_port);
     if (rc != 0)
     {
         shell_error(shell, "Ready ping failed: %d", rc);
@@ -112,7 +174,7 @@ static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
     return 0;
 }
 
-SHELL_CMD_REGISTER(ping, NULL, "Readiness helpers", cmd_ready_ping);
+SHELL_CMD_REGISTER(fwup, NULL, "Readiness helpers", cmd_fwup);
 
 int main(void)
 {

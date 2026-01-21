@@ -8,15 +8,13 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#ifdef CONFIG_SHELL
 #include <zephyr/shell/shell.h>
-#endif
 
 /* ---- Configure these ---- */
-#define SERVER_IP   "192.168.1.117"
+#define SERVER_IP "192.168.1.117"
 #define SERVER_PORT 9999
 
-#define DEVICE_ID   "node03"
+#define DEVICE_ID "node03"
 
 #ifdef CONFIG_MCUMGR_GRP_FS
 #include <zephyr/device.h>
@@ -37,21 +35,11 @@ LOG_MODULE_REGISTER(smp_sample);
 #include "common.h"
 #include "dfu_hooks.h"
 
-
-#ifdef CONFIG_MCUMGR_GRP_FS
-FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
-static struct fs_mount_t littlefs_mnt = {
-	.type = FS_LITTLEFS,
-	.fs_data = &cstorage,
-	.storage_dev = (void *)STORAGE_PARTITION_ID,
-	.mnt_point = "/lfs1"
-};
-#endif
-
 static int send_ready_ping(const char *server_ip, uint16_t server_port)
 {
     int sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0) {
+    if (sock < 0)
+    {
         LOG_ERR("socket() failed: %d", errno);
         return -errno;
     }
@@ -61,7 +49,8 @@ static int send_ready_ping(const char *server_ip, uint16_t server_port)
     dst.sin_port = htons(server_port);
 
     int rc = zsock_inet_pton(AF_INET, server_ip, &dst.sin_addr);
-    if (rc != 1) {
+    if (rc != 1)
+    {
         LOG_ERR("inet_pton() failed for %s", server_ip);
         zsock_close(sock);
         return -EINVAL;
@@ -73,7 +62,8 @@ static int send_ready_ping(const char *server_ip, uint16_t server_port)
                        "{\"kind\":\"ping\",\"device_id\":\"%s\",\"version\":\"%s\",\"smp_port\":1337}",
                        DEVICE_ID, APP_VERSION_STRING);
 
-    if (len <= 0 || len >= sizeof(msg)) {
+    if (len <= 0 || len >= sizeof(msg))
+    {
         LOG_ERR("message formatting failed");
         zsock_close(sock);
         return -EINVAL;
@@ -81,7 +71,8 @@ static int send_ready_ping(const char *server_ip, uint16_t server_port)
 
     rc = zsock_sendto(sock, msg, len, 0,
                       (struct sockaddr *)&dst, sizeof(dst));
-    if (rc < 0) {
+    if (rc < 0)
+    {
         LOG_ERR("sendto() failed: %d", errno);
         zsock_close(sock);
         return -errno;
@@ -92,91 +83,56 @@ static int send_ready_ping(const char *server_ip, uint16_t server_port)
     return 0;
 }
 
-// static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
-// {
-// 	const char *server_ip = SERVER_IP;
-// 	uint16_t server_port = SERVER_PORT;
+static int cmd_ready_ping(const struct shell *shell, size_t argc, char **argv)
+{
+    const char *server_ip = SERVER_IP;
+    uint16_t server_port = SERVER_PORT;
 
-// 	const char *hash = argv[1];
+    if (argc > 1)
+    {
+        server_ip = argv[1];
+    }
 
-// 	if (argc >= 3) {
-// 		server_ip = argv[2];
-// 	}
+    if (argc > 2)
+    {
+        char *endp = NULL;
+        unsigned long port_ul = strtoul(argv[2], &endp, 10);
 
-// 	if (argc >= 4) {
-// 		char *endp = NULL;
-// 		unsigned long port_ul = strtoul(argv[2], &endp, 10);
+        server_port = (uint16_t)port_ul;
+    }
 
-// 		if ((argv[3][0] == '\0') || (endp == NULL) || (*endp != '\0') ||
-// 		    (port_ul > UINT16_MAX)) {
-// 			shell_error(shell, "Invalid port: %s", argv[3]);
-// 			return -EINVAL;
-// 		}
+    int rc = send_ready_ping(server_ip, server_port);
+    if (rc != 0)
+    {
+        shell_error(shell, "Ready ping failed: %d", rc);
+        return rc;
+    }
 
-// 		server_port = (uint16_t)port_ul;
-// 	}
+    shell_print(shell, "Ready ping sent to %s:%u", server_ip, server_port);
+    return 0;
+}
 
-// 	int rc = send_ready_ping(hash, server_ip, server_port);
-// 	if (rc != 0) {
-// 		shell_error(shell, "Ready ping failed: %d", rc);
-// 		return rc;
-// 	}
-
-// 	shell_print(shell, "Ready ping with hash %s sent to %s:%u", hash, server_ip, server_port);
-// 	return 0;
-// }
-
-// SHELL_STATIC_SUBCMD_SET_CREATE(
-// 	sub_ready,
-// 	SHELL_CMD_ARG(ping, NULL, "Send ready ping: ping [ip] [port]", cmd_ready_ping, 0, 3),
-// 	SHELL_SUBCMD_SET_END
-// );
-
-// SHELL_CMD_REGISTER(ready, &sub_ready, "Readiness helpers", NULL);
+SHELL_CMD_REGISTER(ping, NULL, "Readiness helpers", cmd_ready_ping);
 
 int main(void)
 {
 
-	/* Register the built-in mcumgr command handlers. */
-	dfu_hooks_register();
-#ifdef CONFIG_MCUMGR_GRP_FS
-	rc = fs_mount(&littlefs_mnt);
-	if (rc < 0) {
-		LOG_ERR("Error mounting littlefs [%d]", rc);
-	}
-#endif
+    /* Register the built-in mcumgr command handlers. */
+    dfu_hooks_register();
 
-#ifdef CONFIG_MCUMGR_TRANSPORT_UDP_DTLS
-	rc = setup_udp_dtls();
+    /* using __TIME__ ensure that a new binary will be built on every
+     * compile which is convenient when testing firmware upgrade.
+     */
+    LOG_ERR("Build Time: " __DATE__ " " __TIME__);
 
-	if (rc == 0) {
-		rc = smp_udp_open();
+    /* The system work queue handles all incoming mcumgr requests.  Let the
+     * main thread idle while the mcumgr server runs.
+     */
+    // for (int i = 1; i < 30; i++) {
+    // for (int i = 1; true; i++) {
+    // 	k_sleep(K_MSEC(10000));
+    // 	send_ready_ping(SERVER_IP, SERVER_PORT);
+    // }
 
-		if (rc != 0) {
-			LOG_ERR("UDP transport open failed: %d", rc);
-		}
-	} else {
-		LOG_ERR("TLS init failed, cannot start UDP transport");
-	}
-#endif
-
-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
-	start_smp_bluetooth_adverts();
-#endif
-
-	/* using __TIME__ ensure that a new binary will be built on every
-	 * compile which is convenient when testing firmware upgrade.
-	 */
-	LOG_ERR("Build Time: " __DATE__ " " __TIME__);
-
-	/* The system work queue handles all incoming mcumgr requests.  Let the
-	 * main thread idle while the mcumgr server runs.
-	 */
-	// for (int i = 1; i < 30; i++) {
-	for (int i = 1; true; i++) {
-		k_sleep(K_MSEC(10000));
-		send_ready_ping(SERVER_IP, SERVER_PORT);
-	}
-
-	return 0;
+    return 0;
 }

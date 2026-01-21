@@ -17,18 +17,6 @@
 
 #define DEVICE_ID "node03"
 
-#ifdef CONFIG_MCUMGR_GRP_FS
-#include <zephyr/device.h>
-#include <zephyr/fs/fs.h>
-#include <zephyr/fs/littlefs.h>
-#endif
-#ifdef CONFIG_MCUMGR_GRP_STAT
-#include <zephyr/mgmt/mcumgr/grp/stat_mgmt/stat_mgmt.h>
-#endif
-#ifdef CONFIG_MCUMGR_TRANSPORT_UDP_DTLS
-#include <zephyr/mgmt/mcumgr/transport/smp_udp.h>
-#endif
-
 #define LOG_LEVEL LOG_LEVEL_DBG
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(smp_sample);

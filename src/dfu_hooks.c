@@ -105,15 +105,6 @@ out:
 	return rc;
 }
 
-void dfu_hooks_register(void)
-{
-#if defined(CONFIG_MCUMGR_MGMT_NOTIFICATION_HOOKS)
-	mgmt_callback_register(&dfu_cb);
-#else
-	LOG_WRN("DFU hooks disabled: enable CONFIG_MCUMGR_MGMT_NOTIFICATION_HOOKS");
-#endif
-}
-
 static bool dfu_hook_image_update_completed(void)
 {
 	uint8_t sha[IMG_MGMT_DATA_SHA_LEN];
@@ -123,14 +114,14 @@ static bool dfu_hook_image_update_completed(void)
 	if (area_id < 0 || area_id > UINT8_MAX)
 	{
 		LOG_INF("Image upload completed (unknown flash area)");
-		return;
+		return false;
 	}
 
 	int rc = read_image_sha256_from_area((uint8_t)area_id, sha);
 	if (rc != 0)
 	{
 		LOG_INF("Image upload completed (sha256 unavailable: %d)", rc);
-		return;
+		return false;
 	}
 
 	bin2hex(sha, sizeof(sha), sha_hex, sizeof(sha_hex));
@@ -160,13 +151,13 @@ static enum mgmt_cb_return dfu_mgmt_event_cb(uint32_t event, enum mgmt_cb_return
 	switch (event)
 	{
 	case MGMT_EVT_OP_IMG_MGMT_DFU_PENDING:
-		bool ok = dfu_hook_image_update_completed(MGMT_CB_ERROR_ERR);
+		bool ok = dfu_hook_image_update_completed();
 		if (!ok)
 		{
 			LOG_ERR("BAD HASH! ABANDONING!");
 
 			struct img_mgmt_client img_client;
-			img_mgmt_client_erase(&img_client, 1); // todo
+			img_mgmt_client_erase(&img_client, g_img_mgmt_state.area_id);
 		}
 		break;
 	case MGMT_EVT_OP_IMG_MGMT_DFU_CONFIRMED:
@@ -192,3 +183,12 @@ static struct mgmt_callback dfu_cb = {
 	.event_id = MGMT_EVT_OP_IMG_MGMT_DFU_PENDING | MGMT_EVT_OP_IMG_MGMT_DFU_CONFIRMED,
 };
 #endif
+
+void dfu_hooks_register(void)
+{
+#if defined(CONFIG_MCUMGR_MGMT_NOTIFICATION_HOOKS)
+	mgmt_callback_register(&dfu_cb);
+#else
+	LOG_WRN("DFU hooks disabled: enable CONFIG_MCUMGR_MGMT_NOTIFICATION_HOOKS");
+#endif
+}

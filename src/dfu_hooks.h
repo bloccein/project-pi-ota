@@ -2,6 +2,7 @@
 #define DFU_LOGGING_H_
 
 #include <zephyr/mgmt/mcumgr/grp/img_mgmt/img_mgmt.h>
+#include <zephyr/mgmt/mcumgr/grp/img_mgmt/img_mgmt_client.h>
 
 void dfu_hooks_register(void);
 

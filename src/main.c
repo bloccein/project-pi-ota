@@ -33,7 +33,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(smp_sample);
 
-#include "common.h"
 #include "dfu_hooks.h"
 
 static int get_hash(const char *ep_ip, uint16_t ep_port)

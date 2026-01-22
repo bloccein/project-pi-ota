@@ -11,9 +11,9 @@
 #include <zephyr/shell/shell.h>
 
 /* ---- Configure these ---- */
-#define SERVER_IP "192.168.1.117"
-#define SERVER_PORT 9999
-#define ENDPOINT_PORT 6000
+#define SERVER_IP   "192.168.1.145"
+#define SERVER_PORT 9997
+#define ENDPOINT_PORT 6500
 
 #define DEVICE_ID "node03"
 
